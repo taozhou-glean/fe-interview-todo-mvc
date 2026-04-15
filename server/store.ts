@@ -4,7 +4,9 @@ import { Todo } from '../src/types';
 const DATA_FILE = 'server-data.json';
 
 let todos: Record<string, Todo> = {};
-const connectedUsers: Set<string> = new Set();
+// Reference-counted presence: same userId from multiple tabs counts as one user,
+// but only removed when ALL connections for that userId disconnect.
+const connectedUsers: Map<string, number> = new Map();
 
 // Load persisted data on startup
 try {
@@ -47,11 +49,16 @@ export function getAllTodos(): Record<string, Todo> {
 }
 
 export function addUser(userId: string): string[] {
-  connectedUsers.add(userId);
-  return Array.from(connectedUsers);
+  connectedUsers.set(userId, (connectedUsers.get(userId) ?? 0) + 1);
+  return Array.from(connectedUsers.keys());
 }
 
 export function removeUser(userId: string): string[] {
-  connectedUsers.delete(userId);
-  return Array.from(connectedUsers);
+  const count = connectedUsers.get(userId) ?? 0;
+  if (count <= 1) {
+    connectedUsers.delete(userId);
+  } else {
+    connectedUsers.set(userId, count - 1);
+  }
+  return Array.from(connectedUsers.keys());
 }
