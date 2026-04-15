@@ -88,7 +88,7 @@ The candidate must connect the dots: the Escape handler is in the hook, the onBl
 
 ---
 
-### BUG-4: Crash when collaborator deletes a todo
+### BUG-4: Deleting a todo in one tab doesn't remove it from other tabs
 
 **Location:** `hooks/useWebSocket.ts` → `todo:delete` case (line ~57)
 
@@ -98,7 +98,8 @@ The hook follows a correct pattern for MOST handlers: uses `handlersRef.current.
 This means:
 - `todos` is stale (frozen at mount time values)
 - For any todo added after mount, `todos[id]` is `undefined`
-- `.title` on `undefined` throws TypeError, crashing the app
+- `.title` on `undefined` throws a silent TypeError in the WS handler — the delete never propagates to the other tab's state
+- The todo stays visible in the other tab until a manual refresh
 - The OTHER handlers (add, update, sync) work correctly because they go through the ref
 
 The candidate must notice that ONE case out of five reads from the wrong source, while the correct pattern (`todosRef.current`) exists right there but isn't used.
@@ -181,6 +182,6 @@ Signs the candidate relied heavily on AI without understanding:
 - Flags all red herrings as bugs (AI pattern-matches aggressively)
 
 **Important:** Using AI is fine. We want to see that they **understand** the AI's output and can **modify/improve** it. Follow-up questions:
-- "Walk me through your BUG-4 fix. Why does the crash happen?" (Tests stale closure understanding)
+- "Walk me through your BUG-4 fix. Why doesn't the delete propagate to other tabs?" (Tests stale closure understanding)
 - "Why is the search slow? What's the time complexity?" (Tests algorithmic thinking)
 - "The cancel ref flag already existed — why wasn't it working?" (Tests attention to detail)

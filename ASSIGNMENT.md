@@ -42,8 +42,8 @@ Spend **up to 8 hours**. Partial completion is completely fine — we evaluate d
 **BUG-3: Pressing Escape while editing a todo saves instead of canceling** (P1)
 > "When I'm editing a todo and decide I don't want to change it, pressing Escape commits my edits instead of discarding them. I have to manually undo by re-editing."
 
-**BUG-4: App crashes when a collaborator deletes a todo I'm viewing** (P1)
-> "My colleague and I both have the app open. When they delete a todo, my tab sometimes crashes with a white screen. I have to refresh to recover."
+**BUG-4: Deleting a todo in one tab doesn't remove it from other tabs** (P1)
+> "My colleague and I both have the app open. When they delete a todo, it stays visible on my screen. I have to refresh to see it's gone. Todos added after I opened my tab are the worst — deleting those from another tab does nothing on mine."
 
 **BUG-5: Screen reader announces 'clickable' but gives no context** (P2)
 > "Our a11y audit flagged that every todo item is announced as just 'clickable' by screen readers. Users don't know what clicking does — toggle? edit? delete?"
