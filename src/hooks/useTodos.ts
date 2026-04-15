@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Todo, SubTask, FilterMode, AppState } from '../types';
 import { saveTodos, loadTodos } from '../storage';
-import { send, getUserId } from '../ws';
+import { send, getDisplayName } from '../ws';
 import { generateSubTaskId } from '../utils/ids';
 import { searchTodos } from '../utils/search';
 
@@ -78,16 +78,19 @@ export function useTodos() {
     send({
       type: 'todo:add',
       payload: { todo, clientId },
-      userId: getUserId(),
+      userId: getDisplayName(),
       timestamp: now,
     });
   }, []);
 
   const toggleTodo = useCallback((id: string) => {
+    let syncChanges: { completed: boolean; updatedAt: number } | null = null;
+
     setState((prev) => {
       const todo = prev.todos[id];
       if (!todo) return prev;
       const changes = { completed: !todo.completed, updatedAt: Date.now() };
+      syncChanges = changes;
       return {
         ...prev,
         todos: {
@@ -97,17 +100,15 @@ export function useTodos() {
       };
     });
 
-    // Fire-and-forget sync
-    const todo = state.todos[id];
-    if (todo) {
+    if (syncChanges) {
       send({
         type: 'todo:update',
-        payload: { id, changes: { completed: !todo.completed, updatedAt: Date.now() } },
-        userId: getUserId(),
+        payload: { id, changes: syncChanges },
+        userId: getDisplayName(),
         timestamp: Date.now(),
       });
     }
-  }, [state.todos]);
+  }, []);
 
   const deleteTodo = useCallback((id: string) => {
     setState((prev) => {
@@ -119,7 +120,7 @@ export function useTodos() {
     send({
       type: 'todo:delete',
       payload: { id },
-      userId: getUserId(),
+      userId: getDisplayName(),
       timestamp: Date.now(),
     });
   }, []);
@@ -127,15 +128,17 @@ export function useTodos() {
   // --- Edit mode ---
 
   const startEdit = useCallback((id: string) => {
-    const todo = state.todos[id];
-    if (!todo) return;
     isCancelingRef.current = false;
-    setState((prev) => ({
-      ...prev,
-      editingId: id,
-      editingText: todo.title,
-    }));
-  }, [state.todos]);
+    setState((prev) => {
+      const todo = prev.todos[id];
+      if (!todo) return prev;
+      return {
+        ...prev,
+        editingId: id,
+        editingText: todo.title,
+      };
+    });
+  }, []);
 
   // Track whether we're in the middle of a cancel operation
   const isCancelingRef = useRef(false);
@@ -143,16 +146,23 @@ export function useTodos() {
   const saveEdit = useCallback(() => {
     if (isCancelingRef.current) return;
 
+    // Capture what to sync — computed inside setState for fresh state.
+    // Uses a container object so TS doesn't narrow the value to `null`.
+    type SyncAction = { type: 'update'; id: string; changes: Partial<Todo> } | { type: 'delete'; id: string };
+    const pending: { action: SyncAction | null } = { action: null };
+
     setState((prev) => {
       if (!prev.editingId) return prev;
       const title = prev.editingText.trim();
       if (!title) {
         // Delete if emptied
+        pending.action = { type: 'delete', id: prev.editingId };
         const next = { ...prev.todos };
         delete next[prev.editingId];
         return { ...prev, todos: next, editingId: null, editingText: '' };
       }
       const changes = { title, updatedAt: Date.now() };
+      pending.action = { type: 'update', id: prev.editingId, changes };
       return {
         ...prev,
         todos: {
@@ -163,6 +173,25 @@ export function useTodos() {
         editingText: '',
       };
     });
+
+    // Sync after state update — pending.action is set synchronously by setState
+    if (pending.action) {
+      if (pending.action.type === 'update') {
+        send({
+          type: 'todo:update',
+          payload: { id: pending.action.id, changes: pending.action.changes },
+          userId: getDisplayName(),
+          timestamp: Date.now(),
+        });
+      } else {
+        send({
+          type: 'todo:delete',
+          payload: { id: pending.action.id },
+          userId: getDisplayName(),
+          timestamp: Date.now(),
+        });
+      }
+    }
   }, []);
 
   const cancelEdit = useCallback(() => {
@@ -198,63 +227,87 @@ export function useTodos() {
       completed: false,
     };
 
+    let nextSubtasks: SubTask[] | null = null;
+
     setState((prev) => {
       const todo = prev.todos[todoId];
       if (!todo) return prev;
+      nextSubtasks = [...todo.subtasks, subtask];
       return {
         ...prev,
         todos: {
           ...prev.todos,
           [todoId]: {
             ...todo,
-            subtasks: [...todo.subtasks, subtask],
+            subtasks: nextSubtasks,
             updatedAt: Date.now(),
           },
         },
       };
     });
 
-    send({
-      type: 'todo:update',
-      payload: {
-        id: todoId,
-        changes: { subtasks: [...(state.todos[todoId]?.subtasks || []), subtask] },
-      },
-      userId: getUserId(),
-      timestamp: Date.now(),
-    });
-  }, [state.todos]);
+    if (nextSubtasks) {
+      send({
+        type: 'todo:update',
+        payload: { id: todoId, changes: { subtasks: nextSubtasks, updatedAt: Date.now() } },
+        userId: getDisplayName(),
+        timestamp: Date.now(),
+      });
+    }
+  }, []);
 
   const toggleSubtask = useCallback((todoId: string, subtaskId: string) => {
+    let nextSubtasks: SubTask[] | null = null;
+
     setState((prev) => {
       const todo = prev.todos[todoId];
       if (!todo) return prev;
-      const subtasks = todo.subtasks.map((st) =>
+      nextSubtasks = todo.subtasks.map((st) =>
         st.id === subtaskId ? { ...st, completed: !st.completed } : st
       );
       return {
         ...prev,
         todos: {
           ...prev.todos,
-          [todoId]: { ...todo, subtasks, updatedAt: Date.now() },
+          [todoId]: { ...todo, subtasks: nextSubtasks, updatedAt: Date.now() },
         },
       };
     });
+
+    if (nextSubtasks) {
+      send({
+        type: 'todo:update',
+        payload: { id: todoId, changes: { subtasks: nextSubtasks, updatedAt: Date.now() } },
+        userId: getDisplayName(),
+        timestamp: Date.now(),
+      });
+    }
   }, []);
 
   const deleteSubtask = useCallback((todoId: string, subtaskId: string) => {
+    let nextSubtasks: SubTask[] | null = null;
+
     setState((prev) => {
       const todo = prev.todos[todoId];
       if (!todo) return prev;
-      const subtasks = todo.subtasks.filter((st) => st.id !== subtaskId);
+      nextSubtasks = todo.subtasks.filter((st) => st.id !== subtaskId);
       return {
         ...prev,
         todos: {
           ...prev.todos,
-          [todoId]: { ...todo, subtasks, updatedAt: Date.now() },
+          [todoId]: { ...todo, subtasks: nextSubtasks, updatedAt: Date.now() },
         },
       };
     });
+
+    if (nextSubtasks) {
+      send({
+        type: 'todo:update',
+        payload: { id: todoId, changes: { subtasks: nextSubtasks, updatedAt: Date.now() } },
+        userId: getDisplayName(),
+        timestamp: Date.now(),
+      });
+    }
   }, []);
 
   // --- Filtered list ---
@@ -289,26 +342,57 @@ export function useTodos() {
   // --- Bulk ---
 
   const toggleAll = useCallback(() => {
+    const updates: Array<{ id: string; completed: boolean }> = [];
+
     setState((prev) => {
       const allCompleted = Object.values(prev.todos).every((t) => t.completed);
+      const nowCompleted = !allCompleted;
       const updatedTodos: Record<string, Todo> = {};
+      const now = Date.now();
       for (const [id, todo] of Object.entries(prev.todos)) {
-        updatedTodos[id] = { ...todo, completed: !allCompleted, updatedAt: Date.now() };
+        updatedTodos[id] = { ...todo, completed: nowCompleted, updatedAt: now };
+        updates.push({ id, completed: nowCompleted });
       }
       return { ...prev, todos: updatedTodos };
     });
+
+    // Fan out per-todo updates
+    const now = Date.now();
+    for (const { id, completed } of updates) {
+      send({
+        type: 'todo:update',
+        payload: { id, changes: { completed, updatedAt: now } },
+        userId: getDisplayName(),
+        timestamp: now,
+      });
+    }
   }, []);
 
   const clearCompleted = useCallback(() => {
+    const deletedIds: string[] = [];
+
     setState((prev) => {
       const updatedTodos: Record<string, Todo> = {};
       for (const [id, todo] of Object.entries(prev.todos)) {
         if (!todo.completed) {
           updatedTodos[id] = todo;
+        } else {
+          deletedIds.push(id);
         }
       }
       return { ...prev, todos: updatedTodos };
     });
+
+    // Fan out per-todo deletes
+    const now = Date.now();
+    for (const id of deletedIds) {
+      send({
+        type: 'todo:delete',
+        payload: { id },
+        userId: getDisplayName(),
+        timestamp: now,
+      });
+    }
   }, []);
 
   // --- WS state updates (called from useWebSocket) ---
@@ -317,7 +401,7 @@ export function useTodos() {
     setState(updater);
   }, []);
 
-  const actions: TodoActions = {
+  const actions: TodoActions = useMemo(() => ({
     addTodo,
     toggleTodo,
     deleteTodo,
@@ -333,7 +417,11 @@ export function useTodos() {
     setSearchQuery,
     toggleAll,
     clearCompleted,
-  };
+  }), [
+    addTodo, toggleTodo, deleteTodo, startEdit, saveEdit, cancelEdit,
+    editKeyDown, setEditingText, addSubtask, toggleSubtask, deleteSubtask,
+    setFilter, setSearchQuery, toggleAll, clearCompleted,
+  ]);
 
   return {
     state,

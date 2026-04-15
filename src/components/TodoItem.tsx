@@ -8,10 +8,10 @@ interface TodoItemProps {
   editingId: string | null;
   editingText: string;
   editInputRef: MutableRefObject<HTMLInputElement | null>;
-  showSubtaskInput: string | null;
-  setShowSubtaskInput: (id: string | null) => void;
-  newSubtaskText: string;
-  setNewSubtaskText: (text: string) => void;
+  activeSubtaskTodoId: string | null;
+  setActiveSubtaskTodoId: (id: string | null) => void;
+  subtaskDraft: string;
+  setSubtaskDraft: (text: string) => void;
 }
 
 export const TodoItem = memo(function TodoItem({
@@ -20,13 +20,13 @@ export const TodoItem = memo(function TodoItem({
   editingId,
   editingText,
   editInputRef,
-  showSubtaskInput,
-  setShowSubtaskInput,
-  newSubtaskText,
-  setNewSubtaskText,
+  activeSubtaskTodoId,
+  setActiveSubtaskTodoId,
+  subtaskDraft,
+  setSubtaskDraft,
 }: TodoItemProps) {
   const isEditing = editingId === todo.id;
-  const isAddingSubtask = showSubtaskInput === todo.id;
+  const isAddingSubtask = activeSubtaskTodoId === todo.id;
   const completedSubtasks = todo.subtasks.filter((subtask) => subtask.completed).length;
 
   return (
@@ -95,25 +95,25 @@ export const TodoItem = memo(function TodoItem({
           <input
             className="subtask-input"
             placeholder="Add subtask..."
-            value={newSubtaskText}
-            onChange={(e) => setNewSubtaskText(e.target.value)}
+            value={subtaskDraft}
+            onChange={(e) => setSubtaskDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                actions.addSubtask(todo.id, newSubtaskText);
-                setNewSubtaskText('');
-                setShowSubtaskInput(null);
+                actions.addSubtask(todo.id, subtaskDraft);
+                setSubtaskDraft('');
+                setActiveSubtaskTodoId(null);
               }
 
               if (e.key === 'Escape') {
-                setShowSubtaskInput(null);
-                setNewSubtaskText('');
+                setActiveSubtaskTodoId(null);
+                setSubtaskDraft('');
               }
             }}
             autoFocus
           />
         </div>
       ) : (
-        <button className="add-subtask-btn" onClick={() => setShowSubtaskInput(todo.id)}>
+        <button className="add-subtask-btn" onClick={() => setActiveSubtaskTodoId(todo.id)}>
           + Add subtask
         </button>
       )}

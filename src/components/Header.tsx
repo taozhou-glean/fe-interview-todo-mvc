@@ -1,17 +1,22 @@
 import { useState } from 'react';
-import { getUserId, setUserId } from '../ws';
+import { getDisplayName, setDisplayName } from '../ws';
 
 interface HeaderProps {
   connectedUsers: string[];
 }
 
 export function Header({ connectedUsers }: HeaderProps) {
-  const [name, setName] = useState(getUserId());
+  const [name, setName] = useState(getDisplayName());
 
   const handleBlur = () => {
     const trimmed = name.trim();
-    if (trimmed && trimmed !== getUserId()) {
-      setUserId(trimmed);
+    if (!trimmed) {
+      // Reset to current stored name if user cleared the input
+      setName(getDisplayName());
+      return;
+    }
+    if (trimmed !== getDisplayName()) {
+      setDisplayName(trimmed);
     }
   };
 

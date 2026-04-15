@@ -1,5 +1,16 @@
 import { WsMessage } from './types';
 
+/**
+ * WebSocket client — manages connection, reconnection, and message routing.
+ *
+ * Echo filtering rules (who sees what):
+ * - todo:add — Server broadcasts to ALL clients including sender, because the
+ *   server assigns the real ID. Client needs the echo to replace its temp ID.
+ * - todo:update, todo:delete — Server broadcasts to all EXCEPT sender. The sender
+ *   already applied the change optimistically. Client-side filters by userId as backup.
+ * - sync:full, user:join, user:leave — Server-originated, always processed.
+ */
+
 const WS_URL = 'ws://localhost:8080';
 
 type MessageHandler = (msg: WsMessage) => void;
@@ -7,19 +18,24 @@ type MessageHandler = (msg: WsMessage) => void;
 let socket: WebSocket | null = null;
 let messageHandlers: MessageHandler[] = [];
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-const USERID_KEY = 'todo-mvc-userid';
-let userId = localStorage.getItem(USERID_KEY) || `user-${Math.random().toString(36).slice(2, 8)}`;
-localStorage.setItem(USERID_KEY, userId);
+let intentionalClose = false;
+
+const DISPLAY_NAME_KEY = 'todo-mvc-display-name';
+let displayName = localStorage.getItem(DISPLAY_NAME_KEY) || `user-${Math.random().toString(36).slice(2, 8)}`;
+localStorage.setItem(DISPLAY_NAME_KEY, displayName);
 
 function connect() {
+  if (socket && socket.readyState !== WebSocket.CLOSED) return;
+
+  intentionalClose = false;
   socket = new WebSocket(WS_URL);
 
   socket.onopen = () => {
-    console.log('[WS] Connected as', userId);
+    console.log('[WS] Connected as', displayName);
     send({
       type: 'user:join',
-      payload: { userId },
-      userId,
+      payload: { userId: displayName },
+      userId: displayName,
       timestamp: Date.now(),
     });
   };
@@ -27,8 +43,8 @@ function connect() {
   socket.onmessage = (event) => {
     try {
       const msg: WsMessage = JSON.parse(event.data);
-      // Don't process our own messages, except todo:add (server assigns ID)
-      if (msg.userId === userId && msg.type !== 'todo:add') return;
+      // Client ignores its own echoes, except todo:add (server assigns ID)
+      if (msg.userId === displayName && msg.type !== 'todo:add') return;
       messageHandlers.forEach((handler) => handler(msg));
     } catch (e) {
       console.warn('[WS] Failed to parse message:', e);
@@ -36,6 +52,7 @@ function connect() {
   };
 
   socket.onclose = () => {
+    if (intentionalClose) return;
     console.log('[WS] Disconnected. Reconnecting in 3s...');
     reconnectTimer = setTimeout(connect, 3000);
   };
@@ -64,24 +81,35 @@ export function onMessage(handler: MessageHandler): () => void {
 }
 
 export function disconnect(): void {
+  intentionalClose = true;
   if (reconnectTimer) clearTimeout(reconnectTimer);
   socket?.close();
   socket = null;
   messageHandlers = [];
 }
 
-export function getUserId(): string {
-  return userId;
+export function getDisplayName(): string {
+  return displayName;
 }
 
-export function setUserId(newId: string): void {
-  userId = newId;
-  localStorage.setItem(USERID_KEY, newId);
-  // Re-announce to server with new identity
+export function setDisplayName(newName: string): void {
+  const oldName = displayName;
+  displayName = newName;
+  localStorage.setItem(DISPLAY_NAME_KEY, newName);
+
+  // Tell server to remove old identity, then join with new one
+  if (oldName !== newName) {
+    send({
+      type: 'user:leave',
+      payload: { userId: oldName },
+      userId: oldName,
+      timestamp: Date.now(),
+    });
+  }
   send({
     type: 'user:join',
-    payload: { userId: newId },
-    userId: newId,
+    payload: { userId: newName },
+    userId: newName,
     timestamp: Date.now(),
   });
 }

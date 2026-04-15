@@ -40,7 +40,7 @@ export function useWebSocket(
         }
 
         case 'todo:add': {
-          const { todo, clientId } = msg.payload as WsTodoAddPayload & { clientId?: string };
+          const { todo, clientId } = msg.payload as WsTodoAddPayload;
           handlersRef.current.onTodoAdd(todo, msg.userId, clientId);
           break;
         }

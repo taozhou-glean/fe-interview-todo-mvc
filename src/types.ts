@@ -35,6 +35,7 @@ export interface WsMessage {
 
 export interface WsTodoAddPayload {
   todo: Todo;
+  clientId?: string;
 }
 
 export interface WsTodoUpdatePayload {

@@ -10,22 +10,22 @@ interface TodoListProps {
   editingId: string | null;
   editingText: string;
   editInputRef: MutableRefObject<HTMLInputElement | null>;
-  showSubtaskInput: string | null;
-  setShowSubtaskInput: (id: string | null) => void;
-  newSubtaskText: string;
-  setNewSubtaskText: (text: string) => void;
+  activeSubtaskTodoId: string | null;
+  setActiveSubtaskTodoId: (id: string | null) => void;
+  subtaskDraft: string;
+  setSubtaskDraft: (text: string) => void;
 }
 
 const VIRTUALIZE_THRESHOLD = 100;
 
-function estimateRowHeight(todo: Todo, editingId: string | null, showSubtaskInput: string | null): number {
+function estimateRowHeight(todo: Todo, editingId: string | null, activeSubtaskTodoId: string | null): number {
   let height = 58; // base: todo-main + padding
   if (todo.subtasks.length > 0) {
     height += 28 * todo.subtasks.length + 8; // subtask items + margin
     height += 24; // progress bar
   }
   if (editingId === todo.id) height += 8;
-  if (showSubtaskInput === todo.id) height += 40;
+  if (activeSubtaskTodoId === todo.id) height += 40;
   else height += 28; // add subtask button
   return height;
 }
@@ -36,22 +36,22 @@ export function TodoList({
   editingId,
   editingText,
   editInputRef,
-  showSubtaskInput,
-  setShowSubtaskInput,
-  newSubtaskText,
-  setNewSubtaskText,
+  activeSubtaskTodoId,
+  setActiveSubtaskTodoId,
+  subtaskDraft,
+  setSubtaskDraft,
 }: TodoListProps) {
   const listRef = useRef<VariableSizeList>(null);
 
   const getItemSize = useCallback(
-    (index: number) => estimateRowHeight(todos[index], editingId, showSubtaskInput),
-    [todos, editingId, showSubtaskInput]
+    (index: number) => estimateRowHeight(todos[index], editingId, activeSubtaskTodoId),
+    [todos, editingId, activeSubtaskTodoId]
   );
 
   // Reset cached sizes when data changes
   useEffect(() => {
     listRef.current?.resetAfterIndex(0);
-  }, [todos, editingId, showSubtaskInput]);
+  }, [todos, editingId, activeSubtaskTodoId]);
 
   if (todos.length <= VIRTUALIZE_THRESHOLD) {
     return (
@@ -64,10 +64,10 @@ export function TodoList({
             editingId={editingId}
             editingText={editingText}
             editInputRef={editInputRef}
-            showSubtaskInput={showSubtaskInput}
-            setShowSubtaskInput={setShowSubtaskInput}
-            newSubtaskText={newSubtaskText}
-            setNewSubtaskText={setNewSubtaskText}
+            activeSubtaskTodoId={activeSubtaskTodoId}
+            setActiveSubtaskTodoId={setActiveSubtaskTodoId}
+            subtaskDraft={subtaskDraft}
+            setSubtaskDraft={setSubtaskDraft}
           />
         ))}
       </div>
@@ -76,7 +76,7 @@ export function TodoList({
 
   const totalHeight = Math.min(
     600,
-    todos.reduce((sum, todo, i) => sum + estimateRowHeight(todo, editingId, showSubtaskInput), 0)
+    todos.reduce((sum, todo) => sum + estimateRowHeight(todo, editingId, activeSubtaskTodoId), 0)
   );
 
   return (
@@ -96,10 +96,10 @@ export function TodoList({
             editingId={editingId}
             editingText={editingText}
             editInputRef={editInputRef}
-            showSubtaskInput={showSubtaskInput}
-            setShowSubtaskInput={setShowSubtaskInput}
-            newSubtaskText={newSubtaskText}
-            setNewSubtaskText={setNewSubtaskText}
+            activeSubtaskTodoId={activeSubtaskTodoId}
+            setActiveSubtaskTodoId={setActiveSubtaskTodoId}
+            subtaskDraft={subtaskDraft}
+            setSubtaskDraft={setSubtaskDraft}
           />
         </div>
       )}

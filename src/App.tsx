@@ -1,23 +1,29 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Filters } from './components/Filters';
 import { TodoList } from './components/TodoList';
 import { useTodos } from './hooks/useTodos';
 import { useWebSocket } from './hooks/useWebSocket';
-import { getUserId } from './ws';
+import { getDisplayName } from './ws';
 import './App.css';
 
 export default function App() {
   const { state, actions, filteredTodos, editInputRef, applyWsUpdate } = useTodos();
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const [newTodoText, setNewTodoText] = useState('');
-  const [showSubtaskInput, setShowSubtaskInput] = useState<string | null>(null);
-  const [newSubtaskText, setNewSubtaskText] = useState('');
+  const [activeSubtaskTodoId, setActiveSubtaskTodoId] = useState<string | null>(null);
+  const [subtaskDraft, setSubtaskDraft] = useState('');
 
-  const showToast = (message: string) => {
+  useEffect(() => {
+    return () => clearTimeout(toastTimerRef.current);
+  }, []);
+
+  const showToast = useCallback((message: string) => {
+    clearTimeout(toastTimerRef.current);
     setToast(message);
-    setTimeout(() => setToast(null), 3000);
-  };
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  }, []);
 
   useWebSocket(state.todos, {
     onSyncFull: (serverTodos) => {
@@ -33,7 +39,7 @@ export default function App() {
         next[todo.id] = todo;
         return { ...prev, todos: next };
       });
-      if (userId !== getUserId()) {
+      if (userId !== getDisplayName()) {
         showToast(`${userId} added "${todo.title}"`);
       }
     },
@@ -109,10 +115,10 @@ export default function App() {
         editingId={state.editingId}
         editingText={state.editingText}
         editInputRef={editInputRef}
-        showSubtaskInput={showSubtaskInput}
-        setShowSubtaskInput={setShowSubtaskInput}
-        newSubtaskText={newSubtaskText}
-        setNewSubtaskText={setNewSubtaskText}
+        activeSubtaskTodoId={activeSubtaskTodoId}
+        setActiveSubtaskTodoId={setActiveSubtaskTodoId}
+        subtaskDraft={subtaskDraft}
+        setSubtaskDraft={setSubtaskDraft}
       />
       {totalCount > 0 && (
         <div className="footer">

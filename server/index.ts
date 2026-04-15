@@ -4,6 +4,16 @@ import { randomUUID } from 'crypto';
 import { addTodo, updateTodo, deleteTodo, getAllTodos, addUser, removeUser } from './store';
 import { WsMessage, WsTodoAddPayload, WsTodoUpdatePayload, WsTodoDeletePayload } from '../src/types';
 
+/**
+ * WebSocket server — source of truth for todos and presence.
+ *
+ * Broadcasting rules:
+ * - todo:add → broadcast to ALL (including sender) because server assigns the real UUID.
+ * - todo:update, todo:delete → broadcast to all EXCEPT sender (sender applied optimistically).
+ * - user:join, user:leave → broadcast to ALL so every client sees updated presence.
+ * - sync:full → sent only to the joining client, not broadcast.
+ */
+
 const PORT = 8080;
 
 const server = createServer((req, res) => {
@@ -42,9 +52,14 @@ wss.on('connection', (ws: WebSocket) => {
 
       switch (msg.type) {
         case 'user:join': {
-          const userId = msg.userId;
-          clients.set(ws, userId);
-          const users = addUser(userId);
+          const newUserId = msg.userId;
+          // Remove old identity for this socket if renaming
+          const oldUserId = clients.get(ws);
+          if (oldUserId && oldUserId !== newUserId) {
+            removeUser(oldUserId);
+          }
+          clients.set(ws, newUserId);
+          const users = addUser(newUserId);
           // Send full state to new client
           ws.send(JSON.stringify({
             type: 'sync:full',
@@ -52,10 +67,23 @@ wss.on('connection', (ws: WebSocket) => {
             userId: 'server',
             timestamp: Date.now(),
           }));
-          // Broadcast user joined
+          // Broadcast updated user list
           broadcast({
             type: 'user:join',
-            payload: { userId, users },
+            payload: { userId: newUserId, users },
+            userId: 'server',
+            timestamp: Date.now(),
+          });
+          break;
+        }
+
+        case 'user:leave': {
+          // Client-initiated leave (e.g. before rename). Don't remove from clients map.
+          const leavingId = msg.userId;
+          const users = removeUser(leavingId);
+          broadcast({
+            type: 'user:leave',
+            payload: { userId: leavingId, users },
             userId: 'server',
             timestamp: Date.now(),
           });
@@ -63,8 +91,8 @@ wss.on('connection', (ws: WebSocket) => {
         }
 
         case 'todo:add': {
-          const { todo, clientId } = msg.payload as WsTodoAddPayload & { clientId?: string };
-          todo.id = randomUUID();
+          const { todo: clientTodo, clientId } = msg.payload as WsTodoAddPayload;
+          const todo: typeof clientTodo = { ...clientTodo, id: randomUUID() };
           addTodo(todo);
           // Broadcast to all including sender so everyone gets the server-assigned ID
           const addMsg: WsMessage = {
@@ -81,7 +109,13 @@ wss.on('connection', (ws: WebSocket) => {
           const { id, changes } = msg.payload as WsTodoUpdatePayload;
           const updated = updateTodo(id, changes);
           if (updated) {
-            broadcast(msg, ws);
+            // Broadcast server-authoritative result, not the original client message
+            broadcast({
+              type: 'todo:update',
+              payload: { id, changes: { ...changes, updatedAt: updated.updatedAt } },
+              userId: msg.userId,
+              timestamp: Date.now(),
+            }, ws);
           }
           break;
         }
