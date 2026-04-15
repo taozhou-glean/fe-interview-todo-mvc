@@ -25,6 +25,7 @@ export interface AppState {
   editingText: string;
   draggedId: string | null;
   connectedUsers: string[];
+  syncing: boolean;
 }
 
 // WebSocket message types

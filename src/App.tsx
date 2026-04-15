@@ -20,7 +20,7 @@ export default function App() {
 
   useWebSocket(state.todos, {
     onSyncFull: (todos) => {
-      applyWsUpdate((prev) => ({ ...prev, todos: { ...prev.todos, ...todos } }));
+      applyWsUpdate((prev) => ({ ...prev, todos: { ...prev.todos, ...todos }, syncing: false }));
     },
     onTodoAdd: (todo, userId) => {
       applyWsUpdate((prev) => ({ ...prev, todos: { ...prev.todos, [todo.id]: todo } }));
@@ -82,6 +82,9 @@ export default function App() {
         onFilterChange={actions.setFilter}
         onSearchChange={actions.setSearchQuery}
       />
+      {state.syncing && (
+        <div className="sync-status">Syncing todos...</div>
+      )}
       {totalCount > 0 && (
         <div className="toggle-all-container">
           <div className="toggle-all" onClick={actions.toggleAll}>

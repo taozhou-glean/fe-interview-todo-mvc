@@ -43,6 +43,7 @@ export function useTodos() {
       editingText: '',
       draggedId: null,
       connectedUsers: [],
+      syncing: true,
     };
   });
 

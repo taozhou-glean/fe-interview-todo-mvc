@@ -20,6 +20,14 @@ body {
   overflow: hidden;
 }
 
+/* Sync status */
+.sync-status {
+  padding: 16px;
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+}
+
 /* Toast */
 .toast {
   position: fixed;
