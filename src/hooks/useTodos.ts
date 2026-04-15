@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Todo, SubTask, FilterMode, AppState, WsMessage } from '../types';
+import { Todo, SubTask, FilterMode, AppState } from '../types';
 import { saveTodos, loadTodos } from '../storage';
 import { send, getUserId } from '../ws';
 import { generateSubTaskId } from '../utils/ids';
@@ -25,7 +25,7 @@ export interface TodoActions {
 
 /**
  * Core hook managing all todo state and operations.
- * Handles CRUD, filtering, search, drag-and-drop, and persistence.
+ * Handles CRUD, filtering, search, and persistence.
  */
 export function useTodos() {
   const [state, setState] = useState<AppState>(() => {
@@ -41,11 +41,6 @@ export function useTodos() {
     };
   });
 
-  // RED HERRING: This ref stores a snapshot for the drag-drop overlap detector
-  // below. It looks unused but is read inside the handleDragOver closure.
-  const todosSnapshotRef = useRef(state.todos);
-  todosSnapshotRef.current = state.todos;
-
   const editInputRef = useRef<HTMLInputElement>(null);
 
   // Persist todos on change
@@ -59,8 +54,6 @@ export function useTodos() {
       editInputRef.current.focus();
     }
   }, [state.editingId]);
-
-  // --- CRUD ---
 
   const addTodo = useCallback((title: string) => {
     const trimmed = title.trim();
@@ -88,7 +81,7 @@ export function useTodos() {
       userId: getUserId(),
       timestamp: now,
     });
-  }, [state.todos]);
+  }, []);
 
   const toggleTodo = useCallback((id: string) => {
     setState((prev) => {
@@ -283,8 +276,6 @@ export function useTodos() {
     return todos;
   }, [state.todos, state.filter, state.searchQuery]);
 
-  // --- Drag and Drop ---
-
   // --- Filters ---
 
   const setFilter = useCallback((filter: FilterMode) => {
@@ -350,7 +341,5 @@ export function useTodos() {
     filteredTodos,
     editInputRef,
     applyWsUpdate,
-    // RED HERRING: exported for potential future use in drag collision detection
-    todosSnapshotRef,
   };
 }

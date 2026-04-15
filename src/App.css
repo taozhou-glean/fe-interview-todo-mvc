@@ -168,6 +168,9 @@ body {
 .filter-btn {
   padding: 6px 12px;
   font-size: 13px;
+  font-family: inherit;
+  appearance: none;
+  background: transparent;
   border: 1px solid #ddd;
   border-radius: 4px;
   cursor: pointer;

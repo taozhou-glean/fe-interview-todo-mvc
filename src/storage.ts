@@ -26,7 +26,3 @@ export function loadTodos(): Record<string, Todo> {
     return {};
   }
 }
-
-export function clearTodos(): void {
-  localStorage.removeItem(STORAGE_KEY);
-}

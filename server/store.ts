@@ -55,7 +55,3 @@ export function removeUser(userId: string): string[] {
   connectedUsers.delete(userId);
   return Array.from(connectedUsers);
 }
-
-export function getUsers(): string[] {
-  return Array.from(connectedUsers);
-}

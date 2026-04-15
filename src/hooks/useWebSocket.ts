@@ -1,6 +1,6 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { AppState, Todo, WsMessage, WsTodoAddPayload, WsTodoUpdatePayload, WsTodoDeletePayload, WsSyncFullPayload, WsUserPayload } from '../types';
-import { initWebSocket, onMessage, disconnect, send, getUserId } from '../ws';
+import { useEffect, useRef } from 'react';
+import { Todo, WsMessage, WsTodoAddPayload, WsTodoUpdatePayload, WsTodoDeletePayload, WsSyncFullPayload, WsUserPayload } from '../types';
+import { initWebSocket, onMessage, disconnect } from '../ws';
 
 interface WsHandlers {
   onTodoAdd: (todo: Todo, userId: string, clientId?: string) => void;

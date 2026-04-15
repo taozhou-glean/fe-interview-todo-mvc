@@ -67,7 +67,6 @@ export function Filters({
               type="button"
               className={`filter-btn ${isActive ? 'active' : ''}`}
               onClick={() => onFilterChange(option.value)}
-              style={isActive ? { appearance: 'none', fontFamily: 'inherit' } : { appearance: 'none', background: 'transparent', fontFamily: 'inherit' }}
             >
               {option.label} ({countsByFilter[option.value]})
             </button>
