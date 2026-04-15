@@ -1,9 +1,25 @@
 import { WebSocketServer, WebSocket } from 'ws';
+import { createServer } from 'http';
 import { addTodo, updateTodo, deleteTodo, getAllTodos, addUser, removeUser } from './store';
 import { WsMessage, WsTodoAddPayload, WsTodoUpdatePayload, WsTodoDeletePayload, WsTodoReorderPayload } from '../src/types';
 
 const PORT = 8080;
-const wss = new WebSocketServer({ port: PORT });
+
+const server = createServer((req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  if (req.method === 'GET' && req.url === '/todos') {
+    const todos = getAllTodos();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(todos));
+    return;
+  }
+
+  res.writeHead(404);
+  res.end();
+});
+
+const wss = new WebSocketServer({ server });
 
 const clients = new Map<WebSocket, string>();
 
@@ -98,4 +114,7 @@ wss.on('connection', (ws: WebSocket) => {
   });
 });
 
-console.log(`[Server] WebSocket server running on ws://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`[Server] WebSocket server running on ws://localhost:${PORT}`);
+  console.log(`[Server] REST API available at http://localhost:${PORT}/todos`);
+});
