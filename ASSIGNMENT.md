@@ -13,13 +13,7 @@ npm install
 npm run dev     # starts both the Vite dev server (port 3000) and WebSocket server (port 8080)
 ```
 
-To test with large data sets:
-```bash
-npm run seed    # generates seed-data.json with 10,000 todos
-# Then follow the instructions printed to load it in your browser
-```
-
-To test collaborative features, open the app in two browser tabs.
+The app comes pre-seeded with a few sample todos. To test collaborative features, open the app in two browser tabs.
 
 ## Time
 
