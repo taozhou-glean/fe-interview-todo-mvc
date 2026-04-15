@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Todo, SubTask, FilterMode, AppState, WsMessage } from '../types';
 import { saveTodos, loadTodos } from '../storage';
 import { send, getUserId } from '../ws';
-import { generateTodoId, generateSubTaskId, initIdCounter } from '../utils/ids';
-import { getNextOrder, recomputeOrder } from '../utils/ordering';
+import { generateSubTaskId } from '../utils/ids';
 import { searchTodos } from '../utils/search';
 
 export interface TodoActions {
@@ -18,9 +17,6 @@ export interface TodoActions {
   addSubtask: (todoId: string, title: string) => void;
   toggleSubtask: (todoId: string, subtaskId: string) => void;
   deleteSubtask: (todoId: string, subtaskId: string) => void;
-  dragStart: (id: string) => void;
-  dragOver: (e: React.DragEvent, targetId: string) => void;
-  dragEnd: () => void;
   setFilter: (filter: FilterMode) => void;
   setSearchQuery: (query: string) => void;
   toggleAll: () => void;
@@ -34,14 +30,12 @@ export interface TodoActions {
 export function useTodos() {
   const [state, setState] = useState<AppState>(() => {
     const todos = loadTodos();
-    initIdCounter(Object.keys(todos));
     return {
       todos,
       filter: 'all' as FilterMode,
       searchQuery: '',
       editingId: null,
       editingText: '',
-      draggedId: null,
       connectedUsers: [],
       syncing: true,
     };
@@ -72,26 +66,25 @@ export function useTodos() {
     const trimmed = title.trim();
     if (!trimmed) return;
 
-    const id = generateTodoId();
+    const clientId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const now = Date.now();
     const todo: Todo = {
-      id,
+      id: clientId,
       title: trimmed,
       completed: false,
       createdAt: now,
       updatedAt: now,
       subtasks: [],
-      order: Object.keys(state.todos).length,
     };
 
     setState((prev) => ({
       ...prev,
-      todos: { ...prev.todos, [id]: todo },
+      todos: { ...prev.todos, [clientId]: todo },
     }));
 
     send({
       type: 'todo:add',
-      payload: { todo },
+      payload: { todo, clientId },
       userId: getUserId(),
       timestamp: now,
     });
@@ -143,6 +136,7 @@ export function useTodos() {
   const startEdit = useCallback((id: string) => {
     const todo = state.todos[id];
     if (!todo) return;
+    isCancelingRef.current = false;
     setState((prev) => ({
       ...prev,
       editingId: id,
@@ -191,9 +185,9 @@ export function useTodos() {
     if (e.key === 'Enter') {
       saveEdit();
     } else if (e.key === 'Escape') {
-      (e.target as HTMLInputElement).blur();
+      cancelEdit();
     }
-  }, [saveEdit]);
+  }, [saveEdit, cancelEdit]);
 
   const setEditingText = useCallback((text: string) => {
     setState((prev) => ({ ...prev, editingText: text }));
@@ -270,11 +264,11 @@ export function useTodos() {
     });
   }, []);
 
-  // --- Drag and Drop ---
+  // --- Filtered list ---
 
-  const getFilteredList = useCallback((): Todo[] => {
+  const filteredTodos = useMemo((): Todo[] => {
     let todos = Object.values(state.todos);
-    todos.sort((a, b) => a.order - b.order);
+    todos.sort((a, b) => a.createdAt - b.createdAt);
 
     if (state.filter === 'active') {
       todos = todos.filter((t) => !t.completed);
@@ -283,44 +277,13 @@ export function useTodos() {
     }
 
     if (state.searchQuery) {
-      todos = searchTodos(todos, state.searchQuery, state.todos);
+      todos = searchTodos(todos, state.searchQuery);
     }
 
     return todos;
-  }, [state]);
+  }, [state.todos, state.filter, state.searchQuery]);
 
-  const dragStart = useCallback((id: string) => {
-    setState((prev) => ({ ...prev, draggedId: id }));
-  }, []);
-
-  const dragOver = useCallback((e: React.DragEvent, targetId: string) => {
-    e.preventDefault();
-    if (!state.draggedId || state.draggedId === targetId) return;
-
-    const todos = getFilteredList();
-    const draggedIdx = todos.findIndex((t) => t.id === state.draggedId);
-    const targetIdx = todos.findIndex((t) => t.id === targetId);
-    if (draggedIdx === -1 || targetIdx === -1) return;
-
-    const reordered = [...todos];
-    const [dragged] = reordered.splice(draggedIdx, 1);
-    reordered.splice(targetIdx, 0, dragged);
-
-    const updatedTodos = recomputeOrder(reordered, state.todos);
-    setState((prev) => ({ ...prev, todos: updatedTodos }));
-  }, [state.draggedId, state.todos, getFilteredList]);
-
-  const dragEnd = useCallback(() => {
-    if (state.draggedId) {
-      send({
-        type: 'todo:reorder',
-        payload: { orderedIds: getFilteredList().map((t) => t.id) },
-        userId: getUserId(),
-        timestamp: Date.now(),
-      });
-    }
-    setState((prev) => ({ ...prev, draggedId: null }));
-  }, [state.draggedId, getFilteredList]);
+  // --- Drag and Drop ---
 
   // --- Filters ---
 
@@ -375,9 +338,6 @@ export function useTodos() {
     addSubtask,
     toggleSubtask,
     deleteSubtask,
-    dragStart,
-    dragOver,
-    dragEnd,
     setFilter,
     setSearchQuery,
     toggleAll,
@@ -387,7 +347,7 @@ export function useTodos() {
   return {
     state,
     actions,
-    filteredTodos: getFilteredList(),
+    filteredTodos,
     editInputRef,
     applyWsUpdate,
     // RED HERRING: exported for potential future use in drag collision detection

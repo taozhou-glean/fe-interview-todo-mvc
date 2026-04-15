@@ -7,7 +7,9 @@ type MessageHandler = (msg: WsMessage) => void;
 let socket: WebSocket | null = null;
 let messageHandlers: MessageHandler[] = [];
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-const userId = `user-${Math.random().toString(36).slice(2, 8)}`;
+const USERID_KEY = 'todo-mvc-userid';
+let userId = localStorage.getItem(USERID_KEY) || `user-${Math.random().toString(36).slice(2, 8)}`;
+localStorage.setItem(USERID_KEY, userId);
 
 function connect() {
   socket = new WebSocket(WS_URL);
@@ -25,8 +27,8 @@ function connect() {
   socket.onmessage = (event) => {
     try {
       const msg: WsMessage = JSON.parse(event.data);
-      // Don't process our own messages
-      if (msg.userId === userId) return;
+      // Don't process our own messages, except todo:add (server assigns ID)
+      if (msg.userId === userId && msg.type !== 'todo:add') return;
       messageHandlers.forEach((handler) => handler(msg));
     } catch (e) {
       console.warn('[WS] Failed to parse message:', e);
@@ -70,4 +72,16 @@ export function disconnect(): void {
 
 export function getUserId(): string {
   return userId;
+}
+
+export function setUserId(newId: string): void {
+  userId = newId;
+  localStorage.setItem(USERID_KEY, newId);
+  // Re-announce to server with new identity
+  send({
+    type: 'user:join',
+    payload: { userId: newId },
+    userId: newId,
+    timestamp: Date.now(),
+  });
 }

@@ -1,7 +1,8 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
+import { randomUUID } from 'crypto';
 import { addTodo, updateTodo, deleteTodo, getAllTodos, addUser, removeUser } from './store';
-import { WsMessage, WsTodoAddPayload, WsTodoUpdatePayload, WsTodoDeletePayload, WsTodoReorderPayload } from '../src/types';
+import { WsMessage, WsTodoAddPayload, WsTodoUpdatePayload, WsTodoDeletePayload } from '../src/types';
 
 const PORT = 8080;
 
@@ -62,9 +63,17 @@ wss.on('connection', (ws: WebSocket) => {
         }
 
         case 'todo:add': {
-          const { todo } = msg.payload as WsTodoAddPayload;
+          const { todo, clientId } = msg.payload as WsTodoAddPayload & { clientId?: string };
+          todo.id = randomUUID();
           addTodo(todo);
-          broadcast(msg, ws);
+          // Broadcast to all including sender so everyone gets the server-assigned ID
+          const addMsg: WsMessage = {
+            type: 'todo:add',
+            payload: { todo, clientId },
+            userId: msg.userId,
+            timestamp: Date.now(),
+          };
+          broadcast(addMsg);
           break;
         }
 
@@ -80,13 +89,6 @@ wss.on('connection', (ws: WebSocket) => {
         case 'todo:delete': {
           const { id } = msg.payload as WsTodoDeletePayload;
           deleteTodo(id);
-          broadcast(msg, ws);
-          break;
-        }
-
-        case 'todo:reorder': {
-          const { orderedIds: _orderedIds } = msg.payload as WsTodoReorderPayload;
-          // Server doesn't validate reorder, just broadcasts
           broadcast(msg, ws);
           break;
         }

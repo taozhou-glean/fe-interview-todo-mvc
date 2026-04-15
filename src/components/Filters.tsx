@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { FilterMode } from '../types';
 
 interface FiltersProps {
@@ -25,6 +26,23 @@ export function Filters({
   onFilterChange,
   onSearchChange,
 }: FiltersProps) {
+  const [localQuery, setLocalQuery] = useState(searchQuery);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    setLocalQuery(searchQuery);
+  }, [searchQuery]);
+
+  const handleSearchChange = (value: string) => {
+    setLocalQuery(value);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => onSearchChange(value), 300);
+  };
+
+  useEffect(() => {
+    return () => clearTimeout(debounceRef.current);
+  }, []);
+
   const countsByFilter: Record<FilterMode, number> = {
     all: totalCount,
     active: activeCount,
@@ -36,8 +54,8 @@ export function Filters({
       <input
         className="search"
         placeholder="Search todos..."
-        value={searchQuery}
-        onChange={(e) => onSearchChange(e.target.value)}
+        value={localQuery}
+        onChange={(e) => handleSearchChange(e.target.value)}
       />
       <div className="filters">
         {FILTER_OPTIONS.map((option, idx) => {

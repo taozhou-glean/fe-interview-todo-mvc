@@ -1,5 +1,6 @@
 node_modules/
 dist/
 seed-data.json
+server-data.json
 *.png
 .playwright-mcp/

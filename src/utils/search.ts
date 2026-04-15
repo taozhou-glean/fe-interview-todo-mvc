@@ -10,12 +10,11 @@ interface SearchOptions {
  * Higher score = more relevant. Returns 0 for no match.
  *
  * Scoring: title exact match (10), title partial (5),
- * subtask match (3), related subtask (1).
+ * subtask match (3).
  */
 function computeRelevanceScore(
   todo: Todo,
   query: string,
-  allTodos: Record<string, Todo>,
   options: SearchOptions
 ): number {
   const q = options.caseSensitive ? query : query.toLowerCase();
@@ -39,21 +38,6 @@ function computeRelevanceScore(
         score += 3;
       }
     }
-
-    // Cross-reference: boost score if related todos also match
-    // This helps surface todos that are part of a related group
-    const relatedTodos = Object.values(allTodos);
-    for (const related of relatedTodos) {
-      if (related.id === todo.id) continue;
-      for (const st of related.subtasks) {
-        const stTitle = options.caseSensitive
-          ? st.title
-          : st.title.toLowerCase();
-        if (stTitle.includes(q)) {
-          score += 1;
-        }
-      }
-    }
   }
 
   return score;
@@ -67,14 +51,13 @@ function computeRelevanceScore(
 export function searchTodos(
   todos: Todo[],
   query: string,
-  allTodos: Record<string, Todo>,
   options: SearchOptions = {}
 ): Todo[] {
   if (!query.trim()) return todos;
 
   const scored = todos.map((todo) => ({
     todo,
-    score: computeRelevanceScore(todo, query.trim(), allTodos, options),
+    score: computeRelevanceScore(todo, query.trim(), options),
   }));
 
   return scored

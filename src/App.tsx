@@ -4,6 +4,7 @@ import { Filters } from './components/Filters';
 import { TodoList } from './components/TodoList';
 import { useTodos } from './hooks/useTodos';
 import { useWebSocket } from './hooks/useWebSocket';
+import { getUserId } from './ws';
 import './App.css';
 
 export default function App() {
@@ -19,12 +20,22 @@ export default function App() {
   };
 
   useWebSocket(state.todos, {
-    onSyncFull: (todos) => {
-      applyWsUpdate((prev) => ({ ...prev, todos: { ...prev.todos, ...todos }, syncing: false }));
+    onSyncFull: (serverTodos) => {
+      applyWsUpdate((prev) => ({ ...prev, todos: serverTodos, syncing: false }));
     },
-    onTodoAdd: (todo, userId) => {
-      applyWsUpdate((prev) => ({ ...prev, todos: { ...prev.todos, [todo.id]: todo } }));
-      showToast(`${userId} added "${todo.title}"`);
+    onTodoAdd: (todo, userId, clientId) => {
+      applyWsUpdate((prev) => {
+        const next = { ...prev.todos };
+        // If this is our own todo coming back with a server ID, remove the temp entry
+        if (clientId && next[clientId]) {
+          delete next[clientId];
+        }
+        next[todo.id] = todo;
+        return { ...prev, todos: next };
+      });
+      if (userId !== getUserId()) {
+        showToast(`${userId} added "${todo.title}"`);
+      }
     },
     onTodoUpdate: (id, changes, userId) => {
       applyWsUpdate((prev) => ({
@@ -97,7 +108,6 @@ export default function App() {
         actions={actions}
         editingId={state.editingId}
         editingText={state.editingText}
-        draggedId={state.draggedId}
         editInputRef={editInputRef}
         showSubtaskInput={showSubtaskInput}
         setShowSubtaskInput={setShowSubtaskInput}

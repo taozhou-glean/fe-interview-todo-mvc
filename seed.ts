@@ -44,8 +44,6 @@ for (let i = 0; i < COUNT; i++) {
     createdAt: baseTime + i * 60_000,
     updatedAt: baseTime + i * 60_000 + Math.floor(Math.random() * 30_000),
     subtasks: generateSubtasks(subtaskCount),
-    // Intentionally create gaps and inconsistencies in order field
-    order: Math.random() > 0.1 ? i : Math.floor(Math.random() * COUNT),
   };
 }
 

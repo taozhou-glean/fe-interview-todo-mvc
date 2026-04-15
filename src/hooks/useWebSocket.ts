@@ -3,7 +3,7 @@ import { AppState, Todo, WsMessage, WsTodoAddPayload, WsTodoUpdatePayload, WsTod
 import { initWebSocket, onMessage, disconnect, send, getUserId } from '../ws';
 
 interface WsHandlers {
-  onTodoAdd: (todo: Todo, userId: string) => void;
+  onTodoAdd: (todo: Todo, userId: string, clientId?: string) => void;
   onTodoUpdate: (id: string, changes: Partial<Todo>, userId: string) => void;
   onTodoDelete: (id: string, title: string, userId: string) => void;
   onSyncFull: (todos: Record<string, Todo>) => void;
@@ -40,8 +40,8 @@ export function useWebSocket(
         }
 
         case 'todo:add': {
-          const { todo } = msg.payload as WsTodoAddPayload;
-          handlersRef.current.onTodoAdd(todo, msg.userId);
+          const { todo, clientId } = msg.payload as WsTodoAddPayload & { clientId?: string };
+          handlersRef.current.onTodoAdd(todo, msg.userId, clientId);
           break;
         }
 
@@ -53,7 +53,7 @@ export function useWebSocket(
 
         case 'todo:delete': {
           const { id } = msg.payload as WsTodoDeletePayload;
-          const title = todos[id].title;
+          const title = todosRef.current[id]?.title ?? 'a todo';
           handlersRef.current.onTodoDelete(id, title, msg.userId);
           break;
         }

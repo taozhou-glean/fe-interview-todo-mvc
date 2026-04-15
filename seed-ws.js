@@ -1,11 +1,11 @@
 // Run in browser console after `npm run dev` to seed todos via WebSocket.
 // Usage: seedTodos()       → 3 hand-crafted sample todos (default for candidates)
-//        seedTodos(10000)  → 10K generated todos (for perf testing BUG-2)
+//        seedTodos(10000)  → 10K generated todos (for perf testing)
 
 function seedTodos(count) {
   const ws = new WebSocket("ws://localhost:8080");
   ws.onopen = () => {
-    const userId = "seeder";
+    const userId = localStorage.getItem("todo-mvc-userid") || "seeder";
     ws.send(JSON.stringify({ type: "user:join", payload: { userId }, userId, timestamp: Date.now() }));
 
     const todos = count ? generateTodos(count) : handcraftedTodos();
@@ -14,7 +14,7 @@ function seedTodos(count) {
       ws.send(JSON.stringify({ type: "todo:add", payload: { todo }, userId, timestamp: Date.now() }));
     });
 
-    console.log(`Seeded ${todos.length} todos via WebSocket`);
+    console.log(`Seeded ${todos.length} todos via WebSocket (IDs assigned by server)`);
     ws.close();
   };
 }
@@ -22,9 +22,9 @@ function seedTodos(count) {
 function handcraftedTodos() {
   const now = Date.now();
   return [
-    { id: "seed-1", title: "Buy groceries", completed: false, createdAt: now, updatedAt: now, subtasks: [{ id: "sub-1a", title: "Milk", completed: true }, { id: "sub-1b", title: "Eggs", completed: false }], order: 0 },
-    { id: "seed-2", title: "Review PR #42", completed: true, createdAt: now, updatedAt: now, subtasks: [], order: 1 },
-    { id: "seed-3", title: "Plan team offsite", completed: false, createdAt: now, updatedAt: now, subtasks: [{ id: "sub-3a", title: "Book venue", completed: false }, { id: "sub-3b", title: "Send invites", completed: false }, { id: "sub-3c", title: "Order catering", completed: false }], order: 2 },
+    { title: "Buy groceries", completed: false, createdAt: now, updatedAt: now, subtasks: [{ id: "sub-1a", title: "Milk", completed: true }, { id: "sub-1b", title: "Eggs", completed: false }] },
+    { title: "Review PR #42", completed: true, createdAt: now, updatedAt: now, subtasks: [] },
+    { title: "Plan team offsite", completed: false, createdAt: now, updatedAt: now, subtasks: [{ id: "sub-3a", title: "Book venue", completed: false }, { id: "sub-3b", title: "Send invites", completed: false }, { id: "sub-3c", title: "Order catering", completed: false }] },
   ];
 }
 
@@ -46,13 +46,11 @@ function generateTodos(count) {
     }
 
     todos.push({
-      id: String(i + 1),
       title: `${pick(adj)}: ${pick(verbs)} ${pick(nouns)} #${i + 1}`,
       completed: Math.random() > 0.65,
       createdAt: baseTime + i * 60000,
       updatedAt: baseTime + i * 60000 + Math.floor(Math.random() * 30000),
       subtasks,
-      order: Math.random() > 0.1 ? i : Math.floor(Math.random() * count),
     });
   }
   return todos;

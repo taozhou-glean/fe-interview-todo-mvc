@@ -70,8 +70,49 @@ body {
 }
 
 .connected-users {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   color: #999;
+}
+
+.user-id-input {
+  width: 100px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #666;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  outline: none;
+  text-align: right;
+  transition: all 0.15s;
+}
+
+.user-id-input:hover {
+  border-color: #ddd;
+}
+
+.user-id-input:focus {
+  border-color: #c9726c;
+  background: #fff;
+  color: #333;
+}
+
+.online-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #999;
+}
+
+.online-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5cb85c;
 }
 
 /* New todo input */
@@ -182,11 +223,6 @@ body {
   color: #999;
 }
 
-.todo-item.dragging {
-  opacity: 0.5;
-  background: #f0f0f0;
-}
-
 .todo-main {
   display: flex;
   align-items: center;
@@ -196,6 +232,8 @@ body {
 .todo-checkbox {
   width: 28px;
   height: 28px;
+  appearance: none;
+  -webkit-appearance: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -205,7 +243,21 @@ body {
   flex-shrink: 0;
   border-radius: 50%;
   border: 2px solid #ddd;
+  background: transparent;
   transition: all 0.15s;
+}
+
+.todo-checkbox:checked {
+  color: #5cb85c;
+  border-color: #5cb85c;
+}
+
+.todo-checkbox:checked::after {
+  content: '✓';
+}
+
+.todo-checkbox:not(:checked)::after {
+  content: '○';
 }
 
 .todo-checkbox:hover {
@@ -248,6 +300,10 @@ body {
   opacity: 0;
   transition: all 0.15s;
   flex-shrink: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: inherit;
 }
 
 .todo-item:hover .todo-delete {
@@ -274,6 +330,8 @@ body {
 .subtask-checkbox {
   width: 20px;
   height: 20px;
+  appearance: none;
+  -webkit-appearance: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -283,6 +341,16 @@ body {
   flex-shrink: 0;
   border-radius: 50%;
   border: 1.5px solid #ddd;
+  background: transparent;
+}
+
+.subtask-checkbox:checked::after {
+  content: '✓';
+  color: #5cb85c;
+}
+
+.subtask-checkbox:not(:checked)::after {
+  content: '○';
 }
 
 .subtask-checkbox:hover {
@@ -310,6 +378,10 @@ body {
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.15s;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: inherit;
 }
 
 .subtask-item:hover .subtask-delete {
@@ -347,6 +419,9 @@ body {
   color: #999;
   cursor: pointer;
   padding: 2px 0;
+  background: transparent;
+  border: none;
+  font-family: inherit;
 }
 
 .add-subtask-btn:hover {
