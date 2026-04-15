@@ -1,0 +1,28 @@
+{
+  "name": "todo-mvc-production",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"tsx server/index.ts\"",
+    "dev:client": "vite",
+    "dev:server": "tsx server/index.ts",
+    "build": "tsc && vite build",
+    "seed": "tsx seed.ts"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0",
+    "ws": "^8.18.0",
+    "@types/ws": "^8.5.13"
+  }
+}
